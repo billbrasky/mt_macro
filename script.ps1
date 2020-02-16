@@ -47,7 +47,7 @@ const int screen_length = 0x10000 ;
 [System.Runtime.InteropServices.DllImport("user32.dll")]
 extern static uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
-public static void LeftClickAtPoint(int x, int y)
+public static void RightClickAtPoint(int x, int y)
 {
     //Move the mouse
     INPUT[] input = new INPUT[3];
@@ -60,11 +60,25 @@ public static void LeftClickAtPoint(int x, int y)
     input[2].mi.dwFlags = MOUSEEVENTF_RIGHTUP;
     SendInput(3, input, Marshal.SizeOf(input[0]));
 }
+public static void LeftClickAtPoint(int x, int y)
+{
+    //Move the mouse
+    INPUT[] input = new INPUT[3];
+    input[0].mi.dx = x*(65535/System.Windows.Forms.Screen.PrimaryScreen.Bounds.Width);
+    input[0].mi.dy = y*(65535/System.Windows.Forms.Screen.PrimaryScreen.Bounds.Height);
+    input[0].mi.dwFlags = MOUSEEVENTF_MOVED | MOUSEEVENTF_ABSOLUTE;
+    //Left mouse button down
+    input[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
+    //Left mouse button up
+    input[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
+    SendInput(3, input, Marshal.SizeOf(input[0]));
+}
 }
 '@
 Add-Type -TypeDefinition $cSource -ReferencedAssemblies System.Windows.Forms,System.Drawing
 #Send a click at a specified point
-[Clicker1]::LeftClickAtPoint(1312,946)
+[Clicker1]::RightClickAtPoint(1799, 631)
+[Clicker1]::LeftClickAtPoint(1854, 649)
 
 # Add-Type -AssemblyName System.Windows.Forms
 
