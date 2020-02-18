@@ -1,0 +1,10 @@
+steps,x,y,which,time
+left click add filter button,147,75,left,1
+left click open file,426,432,left,1
+left click on desired file,670,580,left,1
+left click to open,883,890,left,1
+left click ok to accept filter,597,609,left,1
+right click on batch,94,164,right,1
+left click to print,158,181,left,1
+print,0,0,left,30
+click ok,643,939,1
