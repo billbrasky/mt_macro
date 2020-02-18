@@ -3,7 +3,7 @@ using System;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
-public class Clicker1
+public class Clicker
 {
 //https://msdn.microsoft.com/en-us/library/windows/desktop/ms646270(v=vs.85).aspx
 [StructLayout(LayoutKind.Sequential)]
@@ -77,8 +77,116 @@ public static void LeftClickAtPoint(int x, int y)
 '@
 Add-Type -TypeDefinition $cSource -ReferencedAssemblies System.Windows.Forms,System.Drawing
 #Send a click at a specified point
-[Clicker1]::RightClickAtPoint(1799, 631)
-[Clicker1]::LeftClickAtPoint(1854, 649)
+
+
+
+function processMultipleBOMs {
+    param ($bomNames)
+    $numberOfCDs = 0
+	$ht = @{}
+	
+    foreach( $bomName in $bomNames ) {
+        if( $bomName -match '.+CD.+' ) {
+			$current = $bomName
+			$ht[$bomName] = 0
+		} elseif( $bomName.length -eq 1 ) {
+			$ht[$current] += [int]$bomName
+			$numberOfCDs += [int]$bomName
+		} else {
+            return $false
+        }
+    }
+    if( $numberOfCDs -gt 2 ) {
+        return $false
+    } else {
+        return $true
+    }
+
+}
+
+$steps = Get-Content -Path C:\Users\breed\Documents\mt_macro-master\steps.txt
+$text = Get-Content -Path C:\Users\breed\Documents\mt_macro-master\real_sample.txt
+
+foreach( $row in $text ) {
+    if($row -like '*batch_id*') {
+        continue
+    }
+
+    $arr = $row.split(",")
+    $bnm = $arr[1]
+    $bid = $arr[0]
+
+    $printcfm = $true
+
+    if( $bnm -match 'NOCFM' ) {
+        $printcfm = $false
+
+    } elseif( ([regex]::Matches($bnm, "-" )).count -gt 1) {
+        $bnmArray = $bnm.split( "-" )
+        $printcfm = processMultipleBOMs( $bnmArray )
+
+    } elseif( $bnm -match '^(.+CD.+-[12])$' ) {
+        $printcfm = $true
+    } else {
+        $printcfm = $false
+    }
+
+    if( $printcfm ) {
+        Write-Output "$bnm print to CFM"
+		$print = 556, 570
+    } else {
+        Write-Output "$bnm do NOT print to CFM"
+		$print = 658, 570
+    }
+	$filter = "[Batch_ID] = '$bid'"
+	(Get-Content "C:\Users\breed\Documents\label_manager_filter_template.txt") -replace 'filler', $bid | Set-Content "C:\Users\breed\Documents\label_manager_filter.txt"
+#	$filter > "C:\Users\breed\Documents\tempfilter.txt"
+
+	foreach( $step in $steps ) {
+		if( $step -match "steps" ) {
+			continue
+		}
+
+		$arr = $step.split( "," )
+		
+		$message = $arr[0]
+		$x = $arr[1]
+		$y = $arr[2]
+		$wait = [int]$arr[3]
+		
+		$leftClick = $true
+		if( $arr[3] -match "right" ) {
+			$leftClick = $false
+		}
+		if( $message -eq "print" ) {
+			$x = $print[0]
+			$y = $print[1]
+			
+			if( $printcfm ) {
+				$wait = 10
+			
+			} else {
+				$wait = 40
+			}
+		}
+
+		if( $leftClick ) {
+			[Clicker]::LeftClickAtPoint( [int]$x, [int]$y )
+		
+		} else {
+			[Clicker]::RightClickAtPoint( [int]$x, [int]$y )
+		}
+		
+		Start-Sleep -s $wait
+	}
+}
+
+
+
+
+
+#yes,556,570
+#no,658,570
 
 # Add-Type -AssemblyName System.Windows.Forms
 
