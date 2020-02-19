@@ -152,7 +152,7 @@ foreach( $row in $text ) {
 		$message = $arr[0]
 		$x = $arr[1]
 		$y = $arr[2]
-		$wait = [int]$arr[3]
+		$wait = [int]$arr[4]
 		
 		$leftClick = $true
 		if( $arr[3] -match "right" ) {
@@ -163,10 +163,10 @@ foreach( $row in $text ) {
 			$y = $print[1]
 			
 			if( $printcfm ) {
-				$wait = 10
+				$wait = 5
 			
 			} else {
-				$wait = 40
+				$wait = 30
 			}
 		}
 
