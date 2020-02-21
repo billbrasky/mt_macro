@@ -105,82 +105,105 @@ function processMultipleBOMs {
 }
 
 $steps = Get-Content -Path C:\Users\breed\Documents\mt_macro-master\steps.txt
-$text = Get-Content -Path C:\Users\breed\Documents\mt_macro-master\real_sample.txt
+$text = Get-Content -Path C:\Users\breed\Documents\mt_macro-master\data.txt
 
+$nocfm = @{}
+$forcfm = @{}
 foreach( $row in $text ) {
-    if($row -like '*batch_id*') {
+    if($row -like '*Batch ID*') {
         continue
     }
 
     $arr = $row.split(",")
-    $bnm = $arr[1]
+    $bnm = $arr[4]
     $bid = $arr[0]
+	
+	if(( $nocfm.$bid -eq $null ) -and ( $forcfm.$bid -eq $null )) {
 
-    $printcfm = $true
+		$printcfm = $true
 
-    if( $bnm -match 'NOCFM' ) {
-        $printcfm = $false
+		if( $bnm -match 'NOCFM' ) {
+			$printcfm = $false
 
-    } elseif( ([regex]::Matches($bnm, "-" )).count -gt 1) {
-        $bnmArray = $bnm.split( "-" )
-        $printcfm = processMultipleBOMs( $bnmArray )
+		} elseif( ([regex]::Matches($bnm, "-" )).count -gt 1) {
+			$bnmArray = $bnm.split( "-" )
+			$printcfm = processMultipleBOMs( $bnmArray )
 
-    } elseif( $bnm -match '^(.+CD.+-[12])$' ) {
-        $printcfm = $true
-    } else {
-        $printcfm = $false
-    }
-
-    if( $printcfm ) {
-        Write-Output "$bnm print to CFM"
-		$print = 556, 570
-    } else {
-        Write-Output "$bnm do NOT print to CFM"
-		$print = 658, 570
-    }
-	$filter = "[Batch_ID] = '$bid'"
-	(Get-Content "C:\Users\breed\Documents\label_manager_filter_template.txt") -replace 'filler', $bid | Set-Content "C:\Users\breed\Documents\label_manager_filter.txt"
-#	$filter > "C:\Users\breed\Documents\tempfilter.txt"
-
-	foreach( $step in $steps ) {
-		if( $step -match "steps" ) {
-			continue
-		}
-
-		$arr = $step.split( "," )
-		
-		$message = $arr[0]
-		$x = $arr[1]
-		$y = $arr[2]
-		$wait = [int]$arr[4]
-		
-		$leftClick = $true
-		if( $arr[3] -match "right" ) {
-			$leftClick = $false
-		}
-		if( $message -eq "print" ) {
-			$x = $print[0]
-			$y = $print[1]
-			
-			if( $printcfm ) {
-				$wait = 5
-			
-			} else {
-				$wait = 30
-			}
-		}
-
-		if( $leftClick ) {
-			[Clicker]::LeftClickAtPoint( [int]$x, [int]$y )
-		
+		} elseif( $bnm -match '^(.+CD.+-[12])$' ) {
+			$printcfm = $true
 		} else {
-			[Clicker]::RightClickAtPoint( [int]$x, [int]$y )
+			$printcfm = $false
+		}
+		if( $printcfm ) {
+			$forcfm.$bid = @{ bom = $bnm; count = 1 }
+		} else {
+			$nocfm.$bid = @{ bom = $bnm; count = 1 }
 		}
 		
-		Start-Sleep -s $wait
+	} elseif( $nocfm.$bid -ne $null ) {
+		$nocfm.$bid.count += 1
+	} else {
+		$forcfm.$bid.count += 1
 	}
 }
 
+
+foreach( $data in $nocfm, $forcfm ) { 
+	foreach( $item in $data.GetEnumerator() | Sort Value -Descending ) {
+		$bnm = $data.bom
+		
+		$printcfm = $data.cfm
+
+		if( $printcfm ) {
+			Write-Output "$bnm print to CFM"
+			$print = 556, 570
+		} else {
+			Write-Output "$bnm do NOT print to CFM"
+			$print = 658, 570
+		}
+		$filter = "[Batch_ID] = '$bid'"
+		(Get-Content "C:\Users\breed\Documents\label_manager_filter_template.txt") -replace 'filler', $bid | Set-Content "C:\Users\breed\Documents\label_manager_filter.txt"
+	#	$filter > "C:\Users\breed\Documents\tempfilter.txt"
+
+		foreach( $step in $steps ) {
+			if( $step -match "steps" ) {
+				continue
+			}
+
+			$arr = $step.split( "," )
+			
+			$message = $arr[0]
+			$x = $arr[1]
+			$y = $arr[2]
+			$wait = [int]$arr[4]
+			
+			$leftClick = $true
+			if( $arr[3] -match "right" ) {
+				$leftClick = $false
+			}
+			if( $message -eq "print" ) {
+				$x = $print[0]
+				$y = $print[1]
+				
+				if( $printcfm ) {
+					$wait = 5
+				
+				} else {
+					$wait = 30
+				}
+			}
+
+			if( $leftClick ) {
+				[Clicker]::LeftClickAtPoint( [int]$x, [int]$y )
+			
+			} else {
+				[Clicker]::RightClickAtPoint( [int]$x, [int]$y )
+			}
+			
+			Start-Sleep -s $wait
+		}
+	}
+}
 
 
 
