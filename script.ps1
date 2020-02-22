@@ -79,34 +79,46 @@ Add-Type -TypeDefinition $cSource -ReferencedAssemblies System.Windows.Forms,Sys
 #Send a click at a specified point
 
 
-
 function processMultipleBOMs {
-    param ($bomNames)
-    $numberOfCDs = 0
+    param ( $bomNameString )
+# When a BOM Name has more than one SKU pattern in it, it is processed here. All 
+# SKUs are checked to verify if batch can be printed to the CFM or not.
+# input: string
+# return: boolean
+	$numberOfCDs = 0
 	$ht = @{}
-	
+	$bomNames = $bomNameString.split( "-" )
+
     foreach( $bomName in $bomNames ) {
         if( $bomName -match '.+CD.+' ) {
 			$current = $bomName
 			$ht[$bomName] = 0
+		
 		} elseif( $bomName.length -eq 1 ) {
 			$ht[$current] += [int]$bomName
 			$numberOfCDs += [int]$bomName
+		
 		} else {
             return $false
         }
-    }
+	}
+	
     if( $numberOfCDs -gt 2 ) {
         return $false
-    } else {
+	
+	} else {
         return $true
     }
 
 }
+$homeDir = "C:\Users\breed\Documents"
+$steps = Get-Content -Path "$homeDir\mt_macro-master\steps.txt"
+$text = Get-Content -Path "$homeDir\mt_macro-master\data.txt"
+$filterTemplate = "$homeDir\label_manager_filter_template.txt"
+$filter = "$homeDir\label_manager_filter.txt"
 
-$steps = Get-Content -Path C:\Users\breed\Documents\mt_macro-master\steps.txt
-$text = Get-Content -Path C:\Users\breed\Documents\mt_macro-master\data.txt
-
+# Loop through data source to organize CFM and non-CFM data. Also, order the 
+# printing by largest to smallest.
 $nocfm = @{}
 $forcfm = @{}
 foreach( $row in $text ) {
@@ -115,55 +127,58 @@ foreach( $row in $text ) {
     }
 
     $arr = $row.split(",")
-    $bnm = $arr[4]
+    $bomName = $arr[4]
     $bid = $arr[0]
 	
-	if(( $nocfm.$bid -eq $null ) -and ( $forcfm.$bid -eq $null )) {
+	if(( $null -eq $nocfm.$bid ) -and ( $null -eq $forcfm.$bid )) {
 
 		$printcfm = $true
 
-		if( $bnm -match 'NOCFM' ) {
+		if( $bomName -match 'NOCFM' ) {
 			$printcfm = $false
 
-		} elseif( ([regex]::Matches($bnm, "-" )).count -gt 1) {
-			$bnmArray = $bnm.split( "-" )
-			$printcfm = processMultipleBOMs( $bnmArray )
+		} elseif(( [regex]::Matches( $bomName, "-" )).count -gt 1 ) {
+			$printcfm = processMultipleBOMs( $bomName )
 
-		} elseif( $bnm -match '^(.+CD.+-[12])$' ) {
+		} elseif( $bomName -match '^(.+CD.+-[12])$' ) {
 			$printcfm = $true
+		
 		} else {
 			$printcfm = $false
-		}
-		if( $printcfm ) {
-			$forcfm.$bid = @{ bom = $bnm; count = 1 }
-		} else {
-			$nocfm.$bid = @{ bom = $bnm; count = 1 }
 		}
 		
-	} elseif( $nocfm.$bid -ne $null ) {
+		if( $printcfm ) {
+			$forcfm.$bid = @{ bom = $bomName; count = 1 }
+		
+		} else {
+			$nocfm.$bid = @{ bom = $bomName; count = 1 }
+		}
+		
+	} elseif( $null -ne $nocfm.$bid ) {
 		$nocfm.$bid.count += 1
+	
 	} else {
 		$forcfm.$bid.count += 1
 	}
 }
+$data = @{ $true = $forcfm; $false = $nocfm }
 
-
-foreach( $data in $nocfm, $forcfm ) { 
-	foreach( $item in $data.GetEnumerator() | Sort Value -Descending ) {
-		$bnm = $data.bom
-		
-		$printcfm = $data.cfm
+# Loop through the organized data to officially print the labels.
+foreach( $printcfm in  $true, $false ) { 
+	foreach( $item in $data.GetEnumerator() | Sort-Object Value -Descending ) {
+		$bomName = $data.$printcfm.bom
+			
 
 		if( $printcfm ) {
-			Write-Output "$bnm print to CFM"
+			Write-Output "Sending $bomName to CFM"
 			$print = 556, 570
+		
 		} else {
-			Write-Output "$bnm do NOT print to CFM"
+			Write-Output "Printing labels for $bomName"
 			$print = 658, 570
 		}
-		$filter = "[Batch_ID] = '$bid'"
-		(Get-Content "C:\Users\breed\Documents\label_manager_filter_template.txt") -replace 'filler', $bid | Set-Content "C:\Users\breed\Documents\label_manager_filter.txt"
-	#	$filter > "C:\Users\breed\Documents\tempfilter.txt"
+		
+		(Get-Content $filterTemplate) -replace 'filler', $bid | Set-Content $filter
 
 		foreach( $step in $steps ) {
 			if( $step -match "steps" ) {
