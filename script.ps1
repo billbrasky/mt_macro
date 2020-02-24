@@ -111,11 +111,13 @@ function processMultipleBOMs {
     }
 
 }
-$homeDir = "C:\Users\breed\Documents"
-$steps = Get-Content -Path "$homeDir\mt_macro-master\steps.txt"
-$text = Get-Content -Path "$homeDir\mt_macro-master\data.txt"
+# $homeDir = "C:\Users\breed\Documents"
+$homeDir = "C:\Users\david\git"
+$steps = Get-Content -Path "$homeDir\mt_macro\steps.txt"
+$text = Get-Content -Path "$homeDir\mt_macro\data.txt"
 $filterTemplate = "$homeDir\label_manager_filter_template.txt"
 $filter = "$homeDir\label_manager_filter.txt"
+$printLabels = $false
 
 # Loop through data source to organize CFM and non-CFM data. Also, order the 
 # printing by largest to smallest.
@@ -132,22 +134,22 @@ foreach( $row in $text ) {
 	
 	if(( $null -eq $nocfm.$bid ) -and ( $null -eq $forcfm.$bid )) {
 
-		$printcfm = $true
+		$printCFM = $true
 
 		if( $bomName -match 'NOCFM' ) {
-			$printcfm = $false
+			$printCFM = $false
 
 		} elseif(( [regex]::Matches( $bomName, "-" )).count -gt 1 ) {
-			$printcfm = processMultipleBOMs( $bomName )
+			$printCFM = processMultipleBOMs( $bomName )
 
 		} elseif( $bomName -match '^(.+CD.+-[12])$' ) {
-			$printcfm = $true
+			$printCFM = $true
 		
 		} else {
-			$printcfm = $false
+			$printCFM = $false
 		}
 		
-		if( $printcfm ) {
+		if( $printCFM ) {
 			$forcfm.$bid = @{ bom = $bomName; count = 1 }
 		
 		} else {
@@ -164,58 +166,63 @@ foreach( $row in $text ) {
 $data = @{ $true = $forcfm; $false = $nocfm }
 
 # Loop through the organized data to officially print the labels.
-foreach( $printcfm in  $true, $false ) { 
-	foreach( $item in $data.GetEnumerator() | Sort-Object Value -Descending ) {
-		$bomName = $data.$printcfm.bom
-			
+foreach( $printCFM in  $false, $true ) { 
+	foreach( $item in $data.$printcfm.GetEnumerator() | Sort-Object Value.count -Descending ) {
+		$batchID = $item.Name
+		$bomName = $item.Value.bom
+		$count = $item.Value.count
 
-		if( $printcfm ) {
-			Write-Output "Sending $bomName to CFM"
+		# continue
+		if( $printCFM ) {
+			Write-Output "batch $batchID : Sending $bomName to CFM - $count"
 			$print = 556, 570
 		
 		} else {
-			Write-Output "Printing labels for $bomName"
+			Write-Output "batch $batchID : Printing labels for $bomName - $count"
 			$print = 658, 570
 		}
 		
-		(Get-Content $filterTemplate) -replace 'filler', $bid | Set-Content $filter
 
-		foreach( $step in $steps ) {
-			if( $step -match "steps" ) {
-				continue
-			}
+		if( $printLabels ) {
+			(Get-Content $filterTemplate) -replace 'filler', $bid | Set-Content $filter
 
-			$arr = $step.split( "," )
-			
-			$message = $arr[0]
-			$x = $arr[1]
-			$y = $arr[2]
-			$wait = [int]$arr[4]
-			
-			$leftClick = $true
-			if( $arr[3] -match "right" ) {
-				$leftClick = $false
-			}
-			if( $message -eq "print" ) {
-				$x = $print[0]
-				$y = $print[1]
+			foreach( $step in $steps ) {
+				if( $step -match "steps" ) {
+					continue
+				}
+
+				$arr = $step.split( "," )
 				
-				if( $printcfm ) {
-					$wait = 5
+				$message = $arr[0]
+				$x = $arr[1]
+				$y = $arr[2]
+				$wait = [int]$arr[4]
+				
+				$leftClick = $true
+				if( $arr[3] -match "right" ) {
+					$leftClick = $false
+				}
+				if( $message -eq "print" ) {
+					$x = $print[0]
+					$y = $print[1]
+					
+					if( $printCFM ) {
+						$wait = 5
+					
+					} else {
+						$wait = 30
+					}
+				}
+
+				if( $leftClick ) {
+					[Clicker]::LeftClickAtPoint( [int]$x, [int]$y )
 				
 				} else {
-					$wait = 30
+					[Clicker]::RightClickAtPoint( [int]$x, [int]$y )
 				}
+				
+				Start-Sleep -s $wait
 			}
-
-			if( $leftClick ) {
-				[Clicker]::LeftClickAtPoint( [int]$x, [int]$y )
-			
-			} else {
-				[Clicker]::RightClickAtPoint( [int]$x, [int]$y )
-			}
-			
-			Start-Sleep -s $wait
 		}
 	}
 }
