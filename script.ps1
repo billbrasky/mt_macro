@@ -111,8 +111,8 @@ function processMultipleBOMs {
     }
 
 }
-# $homeDir = "C:\Users\breed\Documents"
-$homeDir = "C:\Users\david\git"
+$homeDir = "C:\Users\breed\Documents"
+# $homeDir = "C:\Users\david\git"
 $steps = Get-Content -Path "$homeDir\mt_macro\steps.txt"
 $text = Get-Content -Path "$homeDir\mt_macro\data.txt"
 $filterTemplate = "$homeDir\label_manager_filter_template.txt"
@@ -167,10 +167,18 @@ $data = @{ $true = $forcfm; $false = $nocfm }
 
 # Loop through the organized data to officially print the labels.
 foreach( $printCFM in  $false, $true ) { 
-	foreach( $item in $data.$printcfm.GetEnumerator() | Sort-Object Value.count -Descending ) {
+	
+	$tempa = @{}
+	$tempb = @{}
+	foreach( $item in $data.$printCFM.GetEnumerator()) {
+		$tempa[$item.Name] = $item.Value.bom
+		$tempb[$item.Name] = $item.Value.count
+	}
+	
+	foreach( $item in $tempb.GetEnumerator() | Sort-Object Value -Descending ) {
 		$batchID = $item.Name
-		$bomName = $item.Value.bom
-		$count = $item.Value.count
+		$bomName = $tempa.$batchID
+		$count = $tempb.$batchID
 
 		# continue
 		if( $printCFM ) {
