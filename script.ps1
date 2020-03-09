@@ -111,7 +111,7 @@ function processMultipleBOMs {
     }
 
 }
-$homeDir = "C:\Users\breed\Documents"
+$homeDir = "C:\Users\dsuarez\git"
 # $homeDir = "C:\Users\david\git"
 $steps = Get-Content -Path "$homeDir\mt_macro\steps.txt"
 $text = Get-Content -Path "$homeDir\mt_macro\data.txt"
@@ -215,10 +215,22 @@ foreach( $printCFM in  $false, $true ) {
 					$y = $print[1]
 					
 					if( $printCFM ) {
-						$wait = 5
+						if( [int]$count -le 50 ) {
+							$wait = 5
+						} elseif( [int]$count -le 100 ) {
+							$wait = 10
+						} else {
+							$wait = 20
+						}
 					
 					} else {
-						$wait = 30
+						if( [int]$count -le 50 ) {
+							$wait = 30
+						} elseif( [int]$count -le 100 ) {
+							$wait = 60
+						} else {
+							$wait = 90
+						}
 					}
 				}
 
