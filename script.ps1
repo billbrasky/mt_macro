@@ -175,7 +175,7 @@ foreach( $printCFM in  $false, $true ) {
 		$tempb[$item.Name] = $item.Value.count
 	}
 	
-	foreach( $item in $tempb.GetEnumerator() | Sort-Object Value -Descending ) {
+	foreach( $item in $tempb.GetEnumerator() | Sort-Object Name ) {
 		$batchID = $item.Name
 		$bomName = $tempa.$batchID
 		$count = $tempb.$batchID
@@ -192,7 +192,7 @@ foreach( $printCFM in  $false, $true ) {
 		
 
 		if( $printLabels ) {
-			(Get-Content $filterTemplate) -replace 'filler', $bid | Set-Content $filter
+			(Get-Content $filterTemplate) -replace 'filler', $batchID | Set-Content $filter
 
 			foreach( $step in $steps ) {
 				if( $step -match "steps" ) {
